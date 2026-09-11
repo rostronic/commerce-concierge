@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Secrets & local cloud creds — NEVER commit (per billing-fraud key hygiene)
+.env
+*.key
+*.pem
+gcp-key.json
+application_default_credentials.json
+
+# Local durable state (SqliteSaver checkpoints, added in Phase 2)
+*.sqlite
+*.sqlite3
+checkpoints/

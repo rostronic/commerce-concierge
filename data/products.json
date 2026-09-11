@@ -1,0 +1,37 @@
+[
+  {
+    "sku": "TR-BL-10",
+    "name": "Trailblazer Trail Runner (Blue, M10)",
+    "price": 118.0,
+    "description": "Lightweight trail running shoe with a grippy outsole.",
+    "attrs": ["trail", "runner", "shoe", "blue", "size 10", "running"]
+  },
+  {
+    "sku": "TR-RD-08",
+    "name": "Trailblazer Trail Runner (Red, M8)",
+    "price": 118.0,
+    "description": "Lightweight trail running shoe with a grippy outsole.",
+    "attrs": ["trail", "runner", "shoe", "red", "size 8", "running"]
+  },
+  {
+    "sku": "RD-BK-09",
+    "name": "RoadGlide Road Runner (Black, M9)",
+    "price": 139.0,
+    "description": "Cushioned road running shoe for daily miles.",
+    "attrs": ["road", "runner", "shoe", "black", "size 9", "running"]
+  },
+  {
+    "sku": "HK-BR-11",
+    "name": "Summit Hiking Boot (Brown, M11)",
+    "price": 165.0,
+    "description": "Waterproof hiking boot with ankle support.",
+    "attrs": ["hiking", "boot", "brown", "size 11", "waterproof"]
+  },
+  {
+    "sku": "SN-WT-10",
+    "name": "Court Classic Sneaker (White, M10)",
+    "price": 79.0,
+    "description": "Everyday canvas sneaker.",
+    "attrs": ["sneaker", "white", "size 10", "casual"]
+  }
+]

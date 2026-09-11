@@ -1,0 +1,17 @@
+{
+  "10432": {
+    "status": "in transit",
+    "detail": "Shipped 2 days ago via UPS Ground; estimated delivery Aug 22.",
+    "items": ["TR-BL-10"]
+  },
+  "10500": {
+    "status": "delivered",
+    "detail": "Delivered Aug 15 at 2:14pm, left at the front door.",
+    "items": ["SN-WT-10"]
+  },
+  "10999": {
+    "status": "processing",
+    "detail": "Payment confirmed; the warehouse is picking your items now.",
+    "items": ["TR-RD-08", "HK-BR-11"]
+  }
+}

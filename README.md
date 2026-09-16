@@ -5,14 +5,14 @@ shopper questions ("where's my order?", "trail runners under $120?") by reasonin
 a catalog and calling backend tools. Full design and roadmap in [DESIGN.md](DESIGN.md).
 
 > **What it demonstrates:** a stateful agentic eCommerce assistant on LangGraph +
-> LangChain with Google Vertex AI (Gemini), deployable to GCP Cloud Run — a ReAct agent
-> that grounds responses on a product/policy corpus (RAG), calls order/inventory tools,
-> and gates output with an automated faithfulness eval.
+> LangChain with Google Gemini, deployable to GCP Cloud Run — a ReAct agent that grounds
+> responses on a product/policy corpus (RAG), calls order/inventory tools, and gates
+> output with an automated faithfulness eval.
 
-**Status: Phase 1 complete** — a hand-rolled ReAct graph running against a
-deterministic *stub* model, so the LangGraph mechanics run offline with zero API
-keys and zero cloud cost. Later phases swap the stub for Vertex Gemini (see
-[Roadmap](#roadmap)).
+**Status: Phase 1.5 complete** — a hand-rolled ReAct graph that runs two ways: against a
+deterministic *stub* model (offline, zero API keys, zero cost) **and** against a live
+Gemini model via `--live`. Swapping the reasoner is a one-object change because the graph
+is fully decoupled from the model (see [Roadmap](#roadmap)).
 
 ---
 
@@ -22,10 +22,15 @@ keys and zero cloud cost. Later phases swap the stub for Vertex Gemini (see
 uv venv --python 3.11 .venv          # one-time: create the environment
 uv pip install -r requirements.txt   # one-time: install pinned deps
 
-.venv/bin/python -m app.cli --demo   # scripted queries, prints the full trace
-.venv/bin/python -m app.cli          # interactive chat (Ctrl-C to quit)
-.venv/bin/python -m app.cli --graph  # print the graph as a Mermaid diagram
+.venv/bin/python -m app.cli --demo         # scripted queries, prints the full trace (stub model)
+.venv/bin/python -m app.cli                # interactive chat (Ctrl-C to quit)
+.venv/bin/python -m app.cli --graph        # print the graph as a Mermaid diagram
+.venv/bin/python -m app.cli --demo --live  # SAME graph, driven by a live Gemini model
 ```
+
+`--live` needs the live deps (`uv pip install "langchain-google-genai>=2.0" python-dotenv`)
+and reads `GOOGLE_API_KEY` from a `.env` file — a free [Google AI Studio](https://aistudio.google.com/app/apikey)
+key, no GCP project or billing required. The key stays out of git (`.env` is ignored).
 
 Example trace:
 
@@ -76,8 +81,9 @@ data/            # seeded orders.json, products.json
 ## Roadmap
 
 - [x] **Phase 1** — hand-rolled ReAct graph + 2 tools + stub model + CLI.
-- [ ] **Phase 1.5** — swap the stub for `ChatGoogleGenerativeAI(vertexai=True)` (needs a
-      billing-safe GCP project + `gcloud auth application-default login`).
+- [x] **Phase 1.5** — live Gemini via `--live`, using `ChatGoogleGenerativeAI` and a free
+      Google AI Studio key (`GOOGLE_API_KEY`); no GCP project or billing needed. (Vertex AI
+      is an optional swap once a billing-safe GCP project exists — targeted for the Cloud Run deploy.)
 - [ ] **Phase 2** — RAG (policy corpus + FAISS) + `get_policy` + `check_inventory` +
       the grounding **gate** node + `SqliteSaver` durable state.
 - [ ] **Phase 3** — offline eval harness (golden set + faithfulness / tool-selection).

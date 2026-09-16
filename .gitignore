@@ -4,7 +4,7 @@ __pycache__/
 .venv/
 *.egg-info/
 
-# Secrets & local cloud creds — NEVER commit (per billing-fraud key hygiene)
+# Secrets & local cloud creds — NEVER commit
 .env
 *.key
 *.pem

@@ -14,13 +14,15 @@ graph can route on.
 
 GOING LIVE
 ----------
-Swapping to production is a one-line change in app/graph.py:
+Swapping to production is a one-line change: construct a real model and pass it
+to build_graph(model=...). The CLI does this behind its --live flag:
 
-    # from:
-    model = StubChatModel()
-    # to:
     from langchain_google_genai import ChatGoogleGenerativeAI
-    model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", vertexai=True, ...)
+    model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+
+That uses an AI Studio API key from GOOGLE_API_KEY (free tier, no GCP project).
+Leave vertexai at its default of False: vertexai=True routes through Vertex AI,
+which bills a GCP project — avoid it unless you deliberately want that path.
 
 The graph, the state, the tools, and the CLI do not change. That decoupling is
 the entire point of building on LangGraph.

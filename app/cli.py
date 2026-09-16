@@ -1,7 +1,8 @@
 """Run the agent from the terminal and watch the ReAct loop happen.
 
-    python -m app.cli            # interactive chat (Ctrl-C to quit)
+    python -m app.cli            # interactive chat, offline stub model (Ctrl-C to quit)
     python -m app.cli --demo     # run a scripted set of queries and print the trace
+    python -m app.cli --demo --live  # SAME graph, driven by a live Gemini model
     python -m app.cli --graph    # print the graph as a Mermaid diagram and exit
 
 The key teaching move is graph.stream(..., stream_mode="updates"): instead of
@@ -42,12 +43,28 @@ def _run(graph, text: str, config: dict) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Commerce Concierge (Phase 1, stub model)")
+    parser = argparse.ArgumentParser(description="Commerce Concierge (Phase 1)")
     parser.add_argument("--demo", action="store_true", help="run scripted demo queries")
     parser.add_argument("--graph", action="store_true", help="print the graph as Mermaid and exit")
+    parser.add_argument("--live", action="store_true",
+                        help="use live Gemini instead of the offline stub model "
+                             "(needs GOOGLE_API_KEY in .env; free AI Studio key, NOT Vertex)")
     args = parser.parse_args()
 
-    graph = build_graph()
+    # THE ONE CHANGE THAT GOES LIVE. The graph, state, tools and CLI below are
+    # identical either way — build_graph() already accepts any BaseChatModel, so
+    # swapping the reasoner is just constructing a different model here.
+    # Imports are lazy so the offline stub path needs none of these packages.
+    model = None
+    if args.live:
+        from dotenv import load_dotenv
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        load_dotenv()  # read GOOGLE_API_KEY from .env (never committed)
+        # AI Studio free-tier key: vertexai defaults to False, so NO GCP billing.
+        model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+
+    graph = build_graph(model=model)
 
     if args.graph:
         print(graph.get_graph().draw_mermaid())

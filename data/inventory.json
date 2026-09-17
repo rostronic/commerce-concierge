@@ -1,0 +1,7 @@
+{
+  "TR-BL-10": {"warehouse-ca": 12, "warehouse-nj": 3},
+  "TR-RD-08": {"warehouse-ca": 0,  "warehouse-nj": 5},
+  "RD-BK-09": {"warehouse-ca": 7,  "warehouse-nj": 7},
+  "HK-BR-11": {"warehouse-ca": 0,  "warehouse-nj": 0},
+  "SN-WT-10": {"warehouse-ca": 24, "warehouse-nj": 18}
+}

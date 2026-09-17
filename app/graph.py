@@ -34,15 +34,34 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from typing_extensions import TypedDict
 
 from app.stub_model import StubChatModel
-from app.tools import get_order_status, search_catalog
+from app.tools import check_inventory, get_order_status, get_policy, search_catalog
 
-TOOLS = [get_order_status, search_catalog]
+# Phase 2 grew this list from 2 tools to 4 -- and NOTHING else in this file
+# changed. Adding a capability to a ReAct agent is adding a row here; the
+# state, the nodes, the edges and the loop are all indifferent to how many
+# tools exist. That is the property that makes the architecture worth having.
+TOOLS = [get_order_status, search_catalog, check_inventory, get_policy]
 
+# The system prompt is where you tell the model HOW TO CHOOSE between tools.
+# With one or two tools that is nearly automatic; at four it is the main thing
+# standing between you and an agent that calls search_catalog for a returns
+# question. Note it names a *discriminator* for each tool (a specific order, a
+# specific product, a rule) rather than restating what the tool does -- the
+# docstrings in tools.py already say that, and the model reads those too.
 SYSTEM_PROMPT = SystemMessage(content=(
-    "You are Commerce Concierge, a helpful assistant for an online shoe store. "
-    "Use get_order_status for order questions and search_catalog for product "
-    "questions. Only state facts you got from a tool result; if you cannot "
-    "confirm something, say so plainly rather than guessing."
+    "You are Commerce Concierge, a helpful assistant for an online shoe store.\n"
+    "Choose tools by what the question is ABOUT:\n"
+    "- a specific order the shopper placed -> get_order_status\n"
+    "- finding or comparing products -> search_catalog\n"
+    "- whether a specific SKU is actually available -> check_inventory\n"
+    "- the store's rules (returns, refunds, exchanges, shipping, warranty, "
+    "sizing) -> get_policy\n"
+    "Questions often need more than one: 'can I return order 10432' needs the "
+    "order AND the policy. Call the tools you need, then answer once.\n"
+    "Ground every factual claim in a tool result. When you answer from "
+    "get_policy, cite the passage you used. If a tool returns found=false or "
+    "confident=false, say you cannot confirm it -- never fill the gap from "
+    "general knowledge about how stores usually work."
 ))
 
 

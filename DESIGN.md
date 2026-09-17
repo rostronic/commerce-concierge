@@ -1,8 +1,9 @@
 # Commerce Concierge — Design
 
-**Status:** Phase 1 complete (2026-08-19) — a hand-rolled ReAct graph + 2 tools + an
-offline stub model + CLI, running locally (see [README.md](README.md)). Later phases add
-a live model, RAG, an evaluation gate, and deployment.
+**Status:** Phase 2a complete (2026-09-17) — a hand-rolled ReAct graph, 4 tools
+including FAISS retrieval over a policy corpus, multi-hop tool use, and swappable
+offline/live reasoner *and* embeddings (see [README.md](README.md)). Next is the
+grounding gate; then eval, then deployment.
 
 ---
 
@@ -94,6 +95,19 @@ Two implementations, both worth having in the repo:
 
 ### 4.4 Eval & guardrail gate
 - **Grounding check (runtime):** the gate node verifies the answer's factual claims trace to tool output / retrieved docs; ungrounded → loop or refuse. A real guardrail, not decoration.
+- **Why a gate and not just a score threshold (measured, Phase 2a).** The obvious cheap
+  alternative is "refuse when the top retrieval score is low." It does not work, and the
+  numbers say so: across 9 in-scope and 7 out-of-scope questions, in-scope top hits scored
+  0.188–0.569 and out-of-scope ones 0.000–0.283 — **overlapping** ranges, so no threshold
+  separates them. The cause is structural rather than a tuning miss: cosine normalises
+  length away, so *short chunks score high on almost anything* (every out-of-scope question
+  containing the word "policy" retrieved the same three-line section at ~0.25). Swapping in
+  real Gemini embeddings improved *ranking* markedly but did **not** fix abstention —
+  "can I pay in bitcoin?" still retrieved a shipping section at 0.588. A similarity score
+  answers "what is nearest?", never "does this answer the question?" Those are different
+  predicates, and only the second one can be a guardrail. `get_policy` therefore keeps a
+  low `_RELEVANCE_FLOOR` as a cheap pre-filter for the obviously-irrelevant tail, and the
+  real judgement moves to the gate node.
 - **Offline eval harness:** a small **golden set** (~15–20 Q&A with expected tool + grounded answer) + an LLM-as-judge **faithfulness/correctness** score, run as a script/CI gate. Report **precision/recall of tool selection** and a faithfulness score — and note the LLM-judge caveats honestly: position/verbosity/self-preference bias, calibrated against a few human labels.
 
 ### 4.5 GCP deployment (only when enabled)
@@ -110,7 +124,8 @@ is itself a strong signal.
 |---|---|---|
 | Prebuilt agent | `langgraph.prebuilt.create_react_agent`, param `prompt=` | **`langchain.agents.create_agent`, param `system_prompt=`** |
 | Vertex chat model | `langchain_google_vertexai.ChatVertexAI` | **`langchain_google_genai.ChatGoogleGenerativeAI(vertexai=True)`** |
-| Model id | `gemini-2.5-*` (**shuts down Oct 20 2026**) | target a **Gemini 3.x Flash** id for longevity — *verify the exact id + GA status on the live Vertex model page before committing*; `gemini-2.5-flash` is the low-risk default for now |
+| Model id | `gemini-2.5-*` (**shuts down Oct 20 2026**) | **`gemini-3.8-flash`** — verified 2026-09-17 by listing the models the key can actually see and smoke-testing tool-calling on each candidate. Pin an exact id, never a `-latest` alias: an alias silently swaps the reasoner underneath the eval harness and makes regressions unattributable. |
+| Embeddings | `text-embedding-005` (Vertex) | **`gemini-embedding-001`** (3072-d, GA on AI Studio) — verified the same way |
 
 Packages: `langchain` (v1), `langgraph` (v1), `langchain-google-genai` (≥4.0); add
 `langchain-google-vertexai` **only** for Vertex Vector Search, `langgraph-checkpoint-sqlite`
@@ -118,7 +133,8 @@ for durable state. **Pin exact versions with `pip freeze`.**
 
 ## 6. Build plan (phased)
 1. **Local ReAct MVP** — `ChatGoogleGenerativeAI(vertexai=True)` + 2 tools (`get_order_status`, `search_catalog`) + hand-rolled `StateGraph`, run from a CLI against ADC. *(First real Vertex spend — tiny.)*
-2. **RAG + all 4 tools + the gate** — add the policy corpus + FAISS retriever + `get_policy` + `check_inventory` + the grounding-check node + `SqliteSaver`.
+2. **RAG + all 4 tools** *(2a — done)* — policy corpus + FAISS retriever + `get_policy` + `check_inventory` + multi-hop tool use + offline/live embeddings.
+2b. **The gate + durable state** *(next)* — the grounding-check node + `SqliteSaver`.
 3. **Eval harness** — golden set + faithfulness/tool-selection scoring as a script (later a CI gate).
 4. **Deploy** — FastAPI + Dockerfile + Cloud Run + attached SA.
 5. **(optional)** Thin web chat UI; swap FAISS → Vertex Vector Search; note Agent Engine.
@@ -134,7 +150,7 @@ commerce-concierge/
     rag.py                  # embeddings + FAISS retriever (Phase 2)
     gate.py                 # grounding-check node (Phase 2)
     main.py                 # FastAPI entrypoint (Phase 4)
-  data/                     # seeded products/inventory/orders/policies JSON
+  data/                     # seeded products/inventory/orders JSON + policies/*.md
   eval/
     golden_set.jsonl
     run_eval.py             # faithfulness + tool-selection scoring (Phase 3)

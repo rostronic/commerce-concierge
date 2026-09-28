@@ -204,11 +204,16 @@ class StubChatModel(BaseChatModel):
         The checkpointer means `messages` is the WHOLE conversation, not just this
         exchange. Scoping to the current turn is what stops a get_policy call made
         three questions ago from being mistaken for one already answered here.
+
+        Phase 2b made this delicate. The grounding gate sends its retry feedback
+        back as a HumanMessage, so a naive "scan back to the last human" would take
+        the gate's own complaint as the start of a new turn -- concluding no tools
+        had run yet and re-running all of them. `turn_start_index` skips messages
+        the gate marked as feedback, which is why that marking exists.
         """
-        for i in range(len(messages) - 1, -1, -1):
-            if isinstance(messages[i], HumanMessage):
-                return messages[i + 1:]
-        return list(messages)
+        from app.gate import turn_start_index
+
+        return messages[turn_start_index(messages):]
 
     def _tools_run_this_turn(self, messages: list[BaseMessage]) -> set[str]:
         return {m.name for m in self._this_turn(messages) if isinstance(m, ToolMessage)}
@@ -226,10 +231,20 @@ class StubChatModel(BaseChatModel):
 
     @staticmethod
     def _last_human_text(messages: list[BaseMessage]) -> str:
+        from app.gate import is_gate_feedback
+
         for m in reversed(messages):
-            if isinstance(m, HumanMessage):
+            if isinstance(m, HumanMessage) and not is_gate_feedback(m):
                 return m.content if isinstance(m.content, str) else str(m.content)
         return ""
+
+    # NOTE ON THE GATE'S RETRY EDGE. A real model reads the gate's feedback and
+    # rewrites its answer. This stub is a rule engine with no revise step, so on a
+    # retry it re-derives the identical draft, the gate fails it again, and the
+    # bounded counter substitutes the honest refusal. That is the correct outcome
+    # reached by the un-clever route -- and it is left this way deliberately,
+    # because a hand-written "if the gate complained, apologise" rule would make
+    # the stub look like it was reasoning and teach nothing about the mechanism.
 
     # ---------------------------------------------------------------- answer
     def _final_answer(self, messages: list[BaseMessage]) -> AIMessage:

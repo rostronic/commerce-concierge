@@ -10,10 +10,12 @@ Full design and roadmap in [DESIGN.md](DESIGN.md).
 > responses on a product/policy corpus (RAG), calls order/inventory tools, and gates
 > output with an automated faithfulness eval.
 
-**Status: Phase 2a complete** — a hand-rolled ReAct graph with **4 tools**, including
-**RAG retrieval over a policy corpus (FAISS)**, and genuine **multi-hop** tool use. It
-runs two ways: fully offline against a deterministic stub reasoner *and* stub embeddings
-(zero keys, zero cost, byte-identical output), or against live Gemini with `--live`.
+**Status: Phase 2a complete, Phase 2b in progress** — a hand-rolled ReAct graph with
+**4 tools**, including **RAG retrieval over a policy corpus (FAISS)**, genuine
+**multi-hop** tool use, and a **grounding gate** that checks every draft answer before it
+leaves (retry once with reasons, then an honest refusal). It runs two ways: fully offline
+against a deterministic stub reasoner *and* stub embeddings (zero keys, zero cost,
+byte-identical output), or against live Gemini with `--live`.
 
 ---
 
@@ -46,7 +48,8 @@ billing. The key stays out of git (`.env` is ignored, and has never been committ
 > model with a larger free allowance. This is also a standing argument for the offline
 > stub path: the Phase 3 eval harness cannot live on a 20-request budget.
 
-Example trace — note the agent chaining one tool's output into the next call:
+Example trace — note the agent chaining one tool's output into the next call, and the
+gate checking the draft before it leaves:
 
 ```
 👤 Is the Summit hiking boot in stock?
@@ -54,7 +57,8 @@ Example trace — note the agent chaining one tool's output into the next call:
   🔧 [tools] search_catalog returned: {"results": [{"sku": "HK-BR-11", ...}]}
   🧠 [agent] decides to call: check_inventory({'sku': 'HK-BR-11'})
   🔧 [tools] check_inventory returned: {"total": 0, "in_stock": false, ...}
-  💬 [agent] answers: HK-BR-11 is currently **out of stock** in every warehouse.
+  💬 [agent] drafts: HK-BR-11 is currently **out of stock** in every warehouse.
+  🚦 [gate] pass
 ```
 
 ## The graph
@@ -63,16 +67,22 @@ Example trace — note the agent chaining one tool's output into the next call:
 graph TD;
     __start__([start]) --> agent
     agent -.->|has tool_calls| tools
-    agent -.->|no tool_calls| __end__([end])
+    agent -.->|no tool_calls| gate
     tools --> agent
+    gate -.->|retry| agent
+    gate -.->|pass / refused| __end__([end])
 ```
 
-Dotted edges are the **conditional edge**: after the agent speaks, `tools_condition`
-looks at its last message — tool calls present → run the tools and loop back;
-otherwise it's a final answer → stop. That branch *is* the ReAct loop.
+Dotted edges are **conditional edges**. After the agent speaks, `tools_condition` looks
+at its last message — tool calls present → run the tools and loop back; otherwise it's a
+*draft* → the grounding gate. The gate either lets it out, sends it back once with the
+reasons it failed, or replaces it with an honest refusal. The first loop is ReAct; the
+second is the gate, and unlike ReAct it is explicitly bounded.
 
-Worth noticing: Phase 2 added two tools and multi-hop reasoning, and **this diagram did
-not change**. The loop was always general; only the reasoner's stopping judgement grew.
+Worth noticing: Phase 2 added two tools and multi-hop reasoning without touching the
+graph; Phase 2b added the gate by editing only the *path map* of `tools_condition`, not
+the condition itself — "the agent is done reasoning" and "the answer may leave" were
+always two different claims.
 
 ## The tools
 
@@ -110,6 +120,7 @@ app/
   graph.py       # the StateGraph: State, agent node, ToolNode, edges, compile
   tools.py       # the 4 @tool functions
   rag.py         # chunking, embeddings, FAISS store, retrieval
+  gate.py        # grounding gate: judges, retry feedback, bounded refusal (Phase 2b)
   stub_model.py  # deterministic offline stand-in for Gemini
   cli.py         # run + stream the loop from the terminal
 data/
@@ -152,7 +163,9 @@ Numbers from this repo, not from a blog post — reproduce them with the snippet
       + multi-hop tool use + offline (`HashingEmbeddings`) / live (`gemini-embedding-001`)
       retrieval.
 - [ ] **Phase 2b** — the grounding **gate** node (the finding above is its motivation)
-      + `SqliteSaver` durable state.
+      + `SqliteSaver` durable state. *In progress: the gate is wired into the graph and
+      traced in the CLI; the offline judge checks soundness only, so judging relevance
+      waits on the LLM judge.*
 - [ ] **Phase 3** — offline eval harness (golden set + faithfulness / tool-selection).
 - [ ] **Phase 4** — FastAPI + Dockerfile + Cloud Run.
 

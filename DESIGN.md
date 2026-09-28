@@ -2,8 +2,9 @@
 
 **Status:** Phase 2a complete (2026-09-17) — a hand-rolled ReAct graph, 4 tools
 including FAISS retrieval over a policy corpus, multi-hop tool use, and swappable
-offline/live reasoner *and* embeddings (see [README.md](README.md)). Next is the
-grounding gate; then eval, then deployment.
+offline/live reasoner *and* embeddings (see [README.md](README.md)). Phase 2b in
+progress: the grounding gate is wired into the graph (§4.4); durable state, then eval,
+then deployment.
 
 ---
 

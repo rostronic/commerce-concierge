@@ -77,16 +77,32 @@ def _run(graph, text: str, config: dict) -> None:
     """Stream one user turn through the graph, printing each node's output."""
     print(f"\n\033[1m👤 {text}\033[0m")
     for chunk in graph.stream({"messages": [HumanMessage(text)]}, config, stream_mode="updates"):
-        # chunk looks like {"agent": {"messages": [...]}} or {"tools": {...}}.
+        # chunk looks like {"agent": {"messages": [...]}} or {"gate": {"gate_status": ...}}.
         for node, update in chunk.items():
-            for msg in update["messages"]:
+            # NOT EVERY UPDATE CARRIES MESSAGES. A node's update is whatever keys that
+            # node chose to write, and the Phase 2b gate writes only gate_attempts /
+            # gate_status when a draft passes -- it has nothing to add to the
+            # conversation. Indexing update["messages"] crashed on the first passing
+            # answer. Read the update with .get(), never assume its shape.
+            for msg in update.get("messages", []):
                 if isinstance(msg, AIMessage) and msg.tool_calls:
                     for call in msg.tool_calls:
                         print(f"  🧠 [{node}] decides to call: {call['name']}({call['args']})")
                 elif isinstance(msg, ToolMessage):
                     print(f"  🔧 [{node}] {msg.name} returned: {_text(msg.content)}")
-                elif isinstance(msg, AIMessage):
-                    print(f"  💬 [{node}] answers: {_text(msg.content)}")
+                elif isinstance(msg, AIMessage) and node == "agent":
+                    # A DRAFT, not an answer: the gate has not seen it yet.
+                    print(f"  💬 [{node}] drafts: {_text(msg.content)}")
+            if node == "gate":
+                line = f"  🚦 [{node}] {update.get('gate_status')}"
+                if update.get("gate_status") == "retry":  # the reasons it bounced
+                    line += f" — {_text(update['messages'][0].content)}"
+                print(line)
+    # A refusal REPLACES the draft in state (see the reducer trick in app/gate.py),
+    # so the draft printed above is not what the shopper got. Say what was.
+    state = graph.get_state(config).values
+    if state.get("gate_status") == "refused":
+        print(f"  🛑 sent instead: {_text(state['messages'][-1].content)}")
 
 
 def main() -> None:

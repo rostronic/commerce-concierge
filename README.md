@@ -171,4 +171,4 @@ Numbers from this repo, not from a blog post — reproduce them with the snippet
 
 ---
 
-Built by **Bob Ostronic** — [github.com/rostronic](https://github.com/rostronic) · [linkedin.com/in/rostronic](https://www.linkedin.com/in/rostronic)
+Built by **Robert Ostronic** — [github.com/rostronic](https://github.com/rostronic) · [linkedin.com/in/rostronic](https://www.linkedin.com/in/rostronic)
